@@ -3,18 +3,142 @@
 
 ## Loading and preprocessing the data
 
+- First we load necessary libraries:
 
+```{r}
+# suppress library loading warnings
+library(ggplot2, quietly=T, warn.conflicts=F)
+library(Hmisc, quietly=T, warn.conflicts=F)
+library(dplyr, quietly=T, warn.conflicts=F)
+```
 
-## What is mean total number of steps taken per day?
+- Next we unzip the **activity.zip** file if necessary and then load
+**activity.csv** into a dataframe. Note: please change the working
+directory to one containing the file on your computer.
+```{r}
+setwd("~/Documents/coursera/reproducible data/RepData_PeerAssessment1")
+if (!file.exists("activity.csv")) {
+    unzip("activity.zip")
+}
+df <- csv.get("activity.csv")
+```
 
+## Histogram of Total Number of Steps per Day
 
+```{r}
+dfm <- df %>% group_by(date)  %>%
+    summarise(daily_total = sum(steps, na.rm=T),
+              daily_mean = mean(steps, na.rm=T),
+              daily_median = median(steps, na.rm=T),
+              daily_NA = sum(is.na(steps))
+              )
+
+g <- ggplot(dfm, aes(x=date,y=daily_total))
+g <- g + geom_bar(stat="identity")
+g <- g + geom_bar(width=0.5, fill="white", color="black") + labs(x = "date", y = "number of steps", title = "Total number of steps taken each day") 
+g <- g + theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 8,
+   colour = "grey50"))
+g
+```
+
+## Daily Means and Medians of Steps Taken
+```{r}
+dfm %>% select(date, daily_mean, daily_median)
+```
 
 ## What is the average daily activity pattern?
 
+```{r}
+df5 <- df %>% 
+    group_by(interval)  %>%
+    summarise( interval_mean = mean(steps, na.rm=T))
 
+plot(df5$interval,df5$interval_mean,type = 'l',xlab="interval", ylab="average steps", main="average steps per interval")
+max_int <- df5[df5$interval_mean == max(df5$interval_mean),]
+abline(v=max_int$interval,h=max_int$interval_mean, col="blue")
+```
+
+- The interval with the maximum average steps is `r max_int$interval` with a value of `r round(max_int$interval_mean,1)`.
 
 ## Imputing missing values
 
+```{r}
+
+
+df_av_int <- merge(x=df, y=df5, by="interval", all=T ) %>% 
+    mutate(steps = ifelse( is.na(steps), interval_mean, steps)) %>%
+    select(- interval_mean)
+#df_nona will have the total steps per date after replacing NA step values 
+# to the average steps of the interval. 
+df_nona <- df_av_int %>%
+    group_by(date) %>% 
+    summarise(daily_total=sum(steps, na.rm = T),
+              daily_mean=mean(steps, na.rm = T),
+              daily_median=median(steps, na.rm = T))
+
+
+#produce graphs
+g <- ggplot(df_nona, aes(x=date,y=daily_total))
+g <- g + geom_bar(stat="identity")
+g <- g + geom_bar(width=0.5, fill="white", color="black") + labs(x = "date", y = "number of steps", title = "Total number of steps taken each day") 
+g <- g + theme(axis.text.x = element_text(angle = 90, hjust = 0, size = 7,
+   colour = "grey50"))
+g
+
+```
+
+- There are a total `r sum(is.na(df$steps))` NA values for the **steps** variable.
+- the variable **df_av_int** contains the new data with NA's replaced with 
+the mean for the interval.
+- With the NA values replaced we get the following means and medians: 
+
+```{r}
+df_nona %>% select(date, daily_mean, daily_median)
+```
+
+### Observations on the effect of substitutions on the data set
+
+- Given that a day that had any NA's, also had all NA's, or no data at all, one
+could not calculate a mean or median for such a day.
+- The difference between the data having NA's and the data having substitutions are that
+the former data set has more days with 0 steps as the sum of an empty data set is zero. However, in the latter set, the median and mean exist for 
+the previously NA days. 
+- The numerical difference between the datasets with and without substitions are shown 
+below:
+
+
+```{r}
+df_merge = merge(x = dfm, y=df_nona, by="date",all=TRUE)
+
+df_diff <- df_merge %>% 
+     select(date, 
+            median.NA = daily_median.x, 
+            median.sub = daily_median.y,
+            mean.NA = daily_mean.x, 
+            mean.sub = daily_mean.y ) %>%
+    mutate(diff.median = median.NA - median.sub,
+            diff.mean = mean.NA - mean.sub)
+df_diff
+```
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+The following graphics seem to suggest that there is more activity during the morning for weekdays, but more activity throughout the day during the weekend.
+
+```{r}
+# Important: use ifelse for vectorized operations !
+week_factor <- function ( aDate ) {
+    weekday = weekdays(as.Date(aDate))
+    ifelse (weekday %in% c("Saturday","Sunday"), "weekend","weekday")
+}
+
+df_wd <- df_av_int %>% 
+    mutate(weekend = factor(week_factor(date))) %>%
+    group_by(weekend,interval) %>% 
+    summarise(av_steps=mean(steps, na.rm=T))
+
+
+qplot( interval, av_steps, data=df_wd, geom="line", facets = weekend ~ ., ylab="steps per interval", main="steps per interval for weekdays and weekend")
+
+```
