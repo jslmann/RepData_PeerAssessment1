@@ -62,6 +62,8 @@ abline(v=max_int$interval,h=max_int$interval_mean, col="blue")
 
 ## Imputing missing values
 
+We impute values for the NAs by replacing the missing **step** value the interval mean as calculated above in the variable **df5**. The dataframes **df** and **df5** are merged using the **interval** column and then the missing **step** values are replaced with the interval mean values from **df5**. 
+
 ```{r}
 
 

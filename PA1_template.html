@@ -175,6 +175,7 @@ abline(v=max_int$interval,h=max_int$interval_mean, col=&quot;blue&quot;)</code><
 </div>
 <div id="imputing-missing-values" class="section level2">
 <h2>Imputing missing values</h2>
+<p>We impute values for the NAs by replacing the missing <strong>step</strong> value the interval mean as calculated above in the variable <strong>df5</strong>. The dataframes <strong>df</strong> and <strong>df5</strong> are merged using the <strong>interval</strong> column and then the missing <strong>step</strong> values are replaced with the interval mean values from <strong>df5</strong>.</p>
 <pre class="r"><code>df_av_int &lt;- merge(x=df, y=df5, by=&quot;interval&quot;, all=T ) %&gt;% 
     mutate(steps = ifelse( is.na(steps), interval_mean, steps)) %&gt;%
     select(- interval_mean)
